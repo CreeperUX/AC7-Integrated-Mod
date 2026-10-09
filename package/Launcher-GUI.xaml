@@ -1,0 +1,87 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="AC7 · CreeperUX 玩家工具" Width="1040" Height="800" MinWidth="760" MinHeight="540" WindowStartupLocation="CenterScreen" Background="{DynamicResource CxBg}" Foreground="{DynamicResource CxText}" FontFamily="{DynamicResource CxSans}" FontSize="13" UseLayoutRounding="True">
+ <Window.Resources>
+  <Style TargetType="Button">
+   <Setter Property="MinHeight" Value="28"/><Setter Property="Padding" Value="12,5"/><Setter Property="Cursor" Value="Hand"/><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{DynamicResource CxText}"/><Setter Property="BorderBrush" Value="{DynamicResource CxBoundary}"/><Setter Property="BorderThickness" Value="1"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border x:Name="Surface" CornerRadius="5" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/></Border><ControlTemplate.Triggers>
+    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="{DynamicResource CxHover}"/></Trigger>
+    <MultiTrigger><MultiTrigger.Conditions><Condition Property="Tag" Value="primary"/><Condition Property="IsMouseOver" Value="True"/></MultiTrigger.Conditions><Setter TargetName="Surface" Property="Background" Value="{DynamicResource CxAccentHi}"/></MultiTrigger>
+    <Trigger Property="IsPressed" Value="True"><Setter TargetName="Surface" Property="Opacity" Value="0.82"/></Trigger>
+    <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Surface" Property="Opacity" Value="0.45"/></Trigger>
+    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="{DynamicResource CxFocus}"/><Setter TargetName="Surface" Property="BorderThickness" Value="2"/></Trigger>
+   </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+   <Style.Triggers><Trigger Property="Tag" Value="primary"><Setter Property="Background" Value="{DynamicResource CxAccent}"/><Setter Property="Foreground" Value="{DynamicResource CxOnAccent}"/><Setter Property="BorderBrush" Value="{DynamicResource CxAccent}"/><Setter Property="FontWeight" Value="SemiBold"/></Trigger></Style.Triggers>
+  </Style>
+  <Style TargetType="TextBox">
+   <Setter Property="MinHeight" Value="28"/><Setter Property="Padding" Value="10,4"/><Setter Property="Background" Value="{DynamicResource CxDeep}"/><Setter Property="Foreground" Value="{DynamicResource CxText}"/><Setter Property="CaretBrush" Value="{DynamicResource CxText}"/><Setter Property="BorderBrush" Value="{DynamicResource CxBoundary}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="SelectionBrush" Value="{DynamicResource CxAccentSoft}"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TextBox"><Border x:Name="Edge" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="5"><ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/></Border><ControlTemplate.Triggers><Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="Edge" Property="BorderBrush" Value="{DynamicResource CxFocus}"/><Setter TargetName="Edge" Property="BorderThickness" Value="2"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter TargetName="Edge" Property="Opacity" Value="0.45"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style TargetType="RadioButton">
+   <Setter Property="Padding" Value="12"/><Setter Property="Foreground" Value="{DynamicResource CxText}"/><Setter Property="Background" Value="{DynamicResource CxDeep}"/><Setter Property="BorderBrush" Value="{DynamicResource CxBoundary}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Cursor" Value="Hand"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RadioButton"><Border x:Name="Choice" CornerRadius="5" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}"><ContentPresenter VerticalAlignment="Center" RecognizesAccessKey="True"/></Border><ControlTemplate.Triggers>
+    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Choice" Property="Background" Value="{DynamicResource CxHover}"/></Trigger>
+    <Trigger Property="IsChecked" Value="True"><Setter TargetName="Choice" Property="Background" Value="{DynamicResource CxAccentSoft}"/><Setter TargetName="Choice" Property="BorderBrush" Value="{DynamicResource CxAccentMark}"/><Setter Property="Foreground" Value="{DynamicResource CxAccentText}"/></Trigger>
+    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Choice" Property="BorderBrush" Value="{DynamicResource CxFocus}"/><Setter TargetName="Choice" Property="BorderThickness" Value="2"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter TargetName="Choice" Property="Opacity" Value="0.45"/></Trigger>
+   </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style TargetType="ComboBox">
+   <Setter Property="Foreground" Value="{DynamicResource CxText}"/><Setter Property="Background" Value="{DynamicResource CxDeep}"/><Setter Property="BorderBrush" Value="{DynamicResource CxBoundary}"/><Setter Property="MinHeight" Value="28"/><Setter Property="FontSize" Value="11"/>
+   <Setter Property="ItemContainerStyle"><Setter.Value><Style TargetType="ComboBoxItem"><Setter Property="Padding" Value="8"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBoxItem"><Border x:Name="Item" Padding="{TemplateBinding Padding}" Background="Transparent"><ContentPresenter/></Border><ControlTemplate.Triggers><Trigger Property="IsHighlighted" Value="True"><Setter TargetName="Item" Property="Background" Value="{DynamicResource CxAccentSoft}"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style></Setter.Value></Setter>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox"><Grid>
+    <ToggleButton Focusable="False" IsChecked="{Binding IsDropDownOpen,RelativeSource={RelativeSource TemplatedParent},Mode=TwoWay}"><ToggleButton.Template><ControlTemplate TargetType="ToggleButton"><Border Background="{DynamicResource CxDeep}" BorderBrush="{DynamicResource CxBoundary}" BorderThickness="1" CornerRadius="5"><TextBlock Text="▾" HorizontalAlignment="Right" Margin="0,4,8,4" Foreground="{DynamicResource CxMuted}"/></Border></ControlTemplate></ToggleButton.Template></ToggleButton>
+    <TextBlock x:Name="ChoiceHint" Text="检测到多个位置，请选择…" Visibility="Collapsed" IsHitTestVisible="False" Foreground="{DynamicResource CxMuted}" Margin="8,5,24,5"/><ContentPresenter IsHitTestVisible="False" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" Margin="8,5,24,5"/>
+    <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True"><Border Background="{DynamicResource CxRaised}" BorderBrush="{DynamicResource CxBoundary}" BorderThickness="1" CornerRadius="5" MinWidth="300"><ScrollViewer MaxHeight="180"><ItemsPresenter/></ScrollViewer></Border></Popup>
+   </Grid><ControlTemplate.Triggers><Trigger Property="SelectedIndex" Value="-1"><Setter TargetName="ChoiceHint" Property="Visibility" Value="Visible"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style TargetType="ToolTip"><Setter Property="Background" Value="{DynamicResource CxRaised}"/><Setter Property="Foreground" Value="{DynamicResource CxText}"/><Setter Property="BorderBrush" Value="{DynamicResource CxBoundary}"/></Style>
+  <Style x:Key="Panel" TargetType="Border"><Setter Property="Background" Value="{DynamicResource CxPanel}"/><Setter Property="BorderBrush" Value="{DynamicResource CxLine}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="6"/><Setter Property="Padding" Value="20"/></Style>
+  <Style x:Key="Caption" TargetType="TextBlock"><Setter Property="FontSize" Value="12"/><Setter Property="Foreground" Value="{DynamicResource CxMuted}"/><Setter Property="Margin" Value="0,0,0,6"/></Style>
+ </Window.Resources>
+ <Viewbox x:Name="PreviewRoot" Margin="24" Stretch="Uniform" StretchDirection="DownOnly" VerticalAlignment="Top">
+ <Grid Width="940" Background="{DynamicResource CxBg}">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <Border BorderBrush="{DynamicResource CxLine}" BorderThickness="0,0,0,1" Padding="0,0,0,20" Margin="0,0,0,20">
+   <Grid><StackPanel>
+    <StackPanel Orientation="Horizontal"><Border Width="3" Background="{DynamicResource CxAccentMark}" Margin="0,0,10,0"/><TextBlock Text="CREEPERUX / AC7" FontFamily="{DynamicResource CxDisplay}" FontSize="17" Foreground="{DynamicResource CxText}"/></StackPanel>
+    <TextBlock Text="游戏安装与维护" FontSize="22" FontWeight="SemiBold" Margin="0,10,0,6"/>
+    <TextBlock Text="安装鼠标飞控，切换单人与多人，管理设置与卸载。" Foreground="{DynamicResource CxMuted}"/>
+   </StackPanel><StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top"><Border Background="{DynamicResource CxRaised}" BorderBrush="{DynamicResource CxLine}" BorderThickness="1" CornerRadius="4" Padding="8,5" Margin="0,0,8,0"><TextBlock x:Name="PackageVersion" Text="候选" FontSize="12" Foreground="{DynamicResource CxMuted}"/></Border><Button x:Name="ThemeToggle" Content="切换浅色" AutomationProperties.Name="切换深色或浅色主题"/></StackPanel></Grid>
+  </Border>
+  <Grid Grid.Row="1">
+   <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="1.2*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+    <Border Style="{StaticResource Panel}" Margin="0,0,16,0" VerticalAlignment="Top"><StackPanel>
+     <TextBlock Text="01 / INSTALLATION" FontFamily="{DynamicResource CxMono}" FontSize="12" Foreground="{DynamicResource CxQuiet}"/><TextBlock Text="游戏与安装内容" FontSize="17" FontWeight="SemiBold" Margin="0,6,0,20"/>
+     <TextBlock Text="游戏位置" Style="{StaticResource Caption}"/>
+     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBox x:Name="GamePath" AutomationProperties.Name="游戏路径"/><Button x:Name="BrowseGame" Grid.Column="1" Content="浏览…" Margin="8,0,0,0"/></Grid>
+     <ComboBox x:Name="GameCandidates" Visibility="Collapsed" Margin="0,6,0,0" IsSynchronizedWithCurrentItem="False" AutomationProperties.Name="检测到多个游戏位置，请选择" ToolTip="检测到多个游戏位置，请展开选择；也可直接修改上方路径。"/>
+     <TextBlock Text="选择游戏根目录（含 Ace7Game.exe），或粘贴 EXE 路径。" FontSize="11" Foreground="{DynamicResource CxQuiet}" Margin="0,6,0,16"/>
+     <TextBlock Text="Steam 程序" Style="{StaticResource Caption}"/>
+     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBox x:Name="SteamPath" AutomationProperties.Name="Steam 程序路径"/><Button x:Name="BrowseSteam" Grid.Column="1" Content="浏览…" Margin="8,0,0,0"/></Grid>
+     <ComboBox x:Name="SteamCandidates" Visibility="Collapsed" Margin="0,6,0,0" IsSynchronizedWithCurrentItem="False" AutomationProperties.Name="检测到多个 Steam 位置，请选择" ToolTip="检测到多个 Steam 位置，请展开选择。"/>
+     <TextBlock Text="用于查找游戏库与启动游戏；留空时用 steam:// 链接启动。" FontSize="11" Foreground="{DynamicResource CxQuiet}" Margin="0,6,0,0"/>
+     <TextBlock Text="安装内容 · 三种均包含鼠标飞控" Style="{StaticResource Caption}" Margin="0,20,0,8"/>
+     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+      <RadioButton x:Name="MouseOnly" GroupName="Features" Margin="0,0,8,0" Padding="10" AutomationProperties.Name="仅鼠标飞控，导弹保持原版"><StackPanel><TextBlock Text="仅鼠标飞控" FontWeight="SemiBold" TextWrapping="Wrap"/><TextBlock Text="导弹保持原版" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"/></StackPanel></RadioButton>
+      <RadioButton x:Name="GuidanceOnly" Grid.Column="1" GroupName="Features" Margin="0,0,8,0" Padding="10" AutomationProperties.Name="鼠标飞控加导弹仅制导"><StackPanel><TextBlock Text="导弹仅制导" FontWeight="SemiBold" TextWrapping="Wrap"/><TextBlock Text="只改比例引导前置" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"/></StackPanel></RadioButton>
+      <RadioButton x:Name="WithWeapons" Grid.Column="2" GroupName="Features" Padding="10" IsChecked="True" AutomationProperties.Name="鼠标飞控加导弹完整强化"><StackPanel><TextBlock Text="导弹完整强化" FontWeight="SemiBold" TextWrapping="Wrap"/><TextBlock Text="AC8 完整导弹规则" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"/></StackPanel></RadioButton>
+     </Grid>
+     <TextBlock x:Name="ModeDescription" Text="" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource CxMuted}" Margin="0,8,0,0" LineHeight="17"/>
+     <WrapPanel Margin="0,20,0,0"><Button x:Name="Detect" Content="自动定位" Margin="0,0,8,0"/><Button x:Name="Check" Content="检查环境" Margin="0,0,8,0"/><Button x:Name="Install" Content="安装／更新" Tag="primary"/></WrapPanel>
+     <TextBlock Text="安装前自动备份存档与原有 Mod 文件；可接管已有的 AC7 鼠标飞控安装（例如 Codex 0.4.0）。" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource CxQuiet}" Margin="0,10,0,0" LineHeight="17"/>
+    </StackPanel></Border>
+    <StackPanel Grid.Column="1">
+     <Border Style="{StaticResource Panel}" Padding="16"><StackPanel>
+      <Grid><TextBlock Text="02 / MODE" FontFamily="{DynamicResource CxMono}" FontSize="12" Foreground="{DynamicResource CxQuiet}" VerticalAlignment="Center"/><Border x:Name="ModeBadge" HorizontalAlignment="Right" Background="{DynamicResource CxRaised}" BorderBrush="{DynamicResource CxLine}" BorderThickness="1" CornerRadius="4" Padding="8,3"><TextBlock x:Name="ModeBadgeText" Text="尚未检查" FontSize="11" Foreground="{DynamicResource CxMuted}"/></Border></Grid>
+      <TextBlock Text="单人与多人" FontSize="17" FontWeight="SemiBold" Margin="0,6,0,10"/>
+      <TextBlock Text="AC7 多人模式的反作弊会把注入的代码判定为作弊。进入多人对战前，请先退出游戏并停用 Mod；停用只移走加载器，随时可恢复。" TextWrapping="Wrap" Foreground="{DynamicResource CxMuted}" LineHeight="20" Margin="0,0,0,12"/>
+      <WrapPanel><Button x:Name="DisableMod" Content="停用 Mod（多人前）" Margin="0,0,8,8"/><Button x:Name="EnableMod" Content="启用 Mod（单人）" Margin="0,0,8,8"/><Button x:Name="Start" Content="从 Steam 启动" Tag="primary" Margin="0,0,0,8"/></WrapPanel>
+     </StackPanel></Border>
+     <Border Style="{StaticResource Panel}" Margin="0,8,0,0" Padding="12"><StackPanel><TextBlock Text="游戏内按键 · 操纵类型选专家（Expert）" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,6"/><TextBlock Text="F1 设置面板　·　F2 头盔瞄准　·　F3 原生／拉远机位" FontSize="12" Foreground="{DynamicResource CxMuted}"/><TextBlock Text="F4 PEACE／WAR　·　F7 HUD　·　Alt+F7 参考准星" FontSize="12" Foreground="{DynamicResource CxMuted}" Margin="0,4,0,0"/><TextBlock Text="F8 飞控开关　·　F9 回中　·　F10 重读配置　·　按住 C 自由观察" FontSize="12" Foreground="{DynamicResource CxMuted}" Margin="0,4,0,0"/></StackPanel></Border>
+     <Border Style="{StaticResource Panel}" Margin="0,8,0,0" Padding="16"><StackPanel><TextBlock Text="设置与维护" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8"/><TextBlock Text="设置保存在本包，并写入已安装的 config.ini，下次启动生效。卸载先备份，只删除校验一致的文件。" Foreground="{DynamicResource CxMuted}" TextWrapping="Wrap" LineHeight="20"/><WrapPanel Margin="0,12,0,0"><Button x:Name="Settings" Content="飞控设置" Margin="0,0,8,8"/><Button x:Name="Keybindings" Content="键位设置" Margin="0,0,8,8"/><Button x:Name="CollectLogs" Content="收集日志" Margin="0,0,8,8"/><Button x:Name="OpenLogs" Content="诊断文件夹" Margin="0,0,8,8"/><Button x:Name="Recover" Content="卸载（备份并清理）" Margin="0,0,0,8"/></WrapPanel></StackPanel></Border>
+    </StackPanel>
+   </Grid>
+  </Grid>
+  <Border x:Name="StatusCard" Grid.Row="2" Style="{StaticResource Panel}" Margin="0,16,0,0" Padding="16"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="3"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Border x:Name="StatusMark" Background="{DynamicResource CxInfo}"/><StackPanel Grid.Column="1" Margin="12,0,0,0"><TextBlock x:Name="StatusTitle" Text="先选择游戏位置" FontWeight="SemiBold" Margin="0,0,0,6"/><TextBlock x:Name="StatusMessage" Text="检查、安装与切换结果会显示在这里。普通游玩不需要 Python。" Foreground="{DynamicResource CxMuted}" TextWrapping="Wrap" LineHeight="20"/><ProgressBar x:Name="BusyBar" Height="2" Background="{DynamicResource CxFaint}" Foreground="{DynamicResource CxAccent}" Margin="0,10,0,0" IsIndeterminate="True" Visibility="Collapsed"/></StackPanel></Grid></Border>
+  <Grid Grid.Row="3" Margin="0,12,0,0"><TextBlock Text="仅限单人游戏。多人对战前请先停用 Mod。" FontSize="11" Foreground="{DynamicResource CxQuiet}"/><TextBlock Text="CREEPERUX" HorizontalAlignment="Right" FontFamily="{DynamicResource CxMono}" FontSize="11" Foreground="{DynamicResource CxQuiet}"/></Grid>
+ </Grid>
+ </Viewbox>
+</Window>

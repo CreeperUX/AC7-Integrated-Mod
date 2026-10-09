@@ -1,0 +1,22 @@
+{
+  "version": "0.6.0-beta.1",
+  "status": "beta",
+  "game": "ACE COMBAT 7",
+  "game_build": "9855922",
+  "game_sha256": "C7DA97F5F8A807D4F1264ADBB074146FCFFE9BDC2FFA98791B822CD28E558F4F",
+  "steam_app_id": 502500,
+  "native_controller_version": "AC7 0.6.0-beta.1 (AC8 2.4.2 core, WAR 13.8 exact AC7 flight engine with keyboard takeover fix, GPU reticle at native resolution, thin lines)",
+  "native_sha256": "1FC2844C65D2D0866B6A0DB3888BE8F6D91FB37DADB1F893CBA9EE1DC3A1073E",
+  "ue4ss_sha256": "7C6219D0B13B7FCFFCE59F5B62111A783EB64E02B206DBF8D43517E7EB540ACD",
+  "loader_sha256": "EA3CDBB755DD61B9F4DE70590B78A15974BE65BA5FB3837EA2E1799D78D4C116",
+  "single_player_only": true,
+  "control_modes": {
+    "0": "PEACE (CLASSIC 2.0)",
+    "3": "WAR (exact AC7 flight-engine controller; degraded mode WAR v11.1)"
+  },
+  "features": {
+    "mouse": "AC7MouseAim only",
+    "guidance": "AC7MouseAim + AC7Weapons guidance tier (AC8 HomingForesightAmount on 30 player missiles; stock performance)",
+    "full": "AC7MouseAim + AC7Weapons full tier (all AC8 missile rules: guidance, speed and turn, lock-on range, fuze, blast, range)"
+  }
+}
