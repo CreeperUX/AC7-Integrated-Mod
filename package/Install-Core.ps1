@@ -2,6 +2,7 @@
 . ([IO.Path]::Combine($PSScriptRoot,'Feature-Settings.ps1'))
 . ([IO.Path]::Combine($PSScriptRoot,'MouseAim-Settings.ps1'))
 . ([IO.Path]::Combine($PSScriptRoot,'Keybinding-Settings.ps1'))
+. ([IO.Path]::Combine($PSScriptRoot,'ExtraMods-Settings.ps1'))
 # Persistent AC7 install with an ownership manifest (ue4ss\AC7-MouseAim-owner.json, compatible superset of the
 # Codex Deploy.ps1 format). Safety model: never overwrite or delete a file whose hash is not recorded as ours;
 # validate everything before the first write; back up and journal before changing the game folder.
@@ -169,7 +170,7 @@ function ConvertTo-AC7OrderedManifest($Manifest) {
  return $result
 }
 function Test-AC7Package([string]$PackageRoot) {
- foreach($name in @('PowerShell-Compat.ps1','Install-Common.ps1','Install-Core.ps1','Cleanup-Core.ps1','Feature-Settings.ps1','features.ini','MouseAim-Settings.ps1','MouseAim-Settings.ini','MouseAim-Settings-GUI.ps1','MouseAim-Settings-GUI.xaml','Keybinding-Settings.ps1','Keybindings.ini','Keybindings.schema.json','Keybindings-GUI.ps1','Keybindings-GUI.xaml','Discover-Installations.ps1','Gui-Core.ps1','Gui-Worker.ps1','Launcher-GUI.ps1','Launcher-GUI.xaml','CreeperUX-Theme.ps1','ui/creeperux/tokens.json','ui/creeperux/fonts/chakra-petch-600-latin.ttf','ui/creeperux/fonts/share-tech-mono-400-latin.ttf','Start-GUI.cmd','Setup.ps1','Setup.cmd','Run-Console.ps1','Mod-Mode.ps1','Enable-Mod.cmd','Disable-Mod.cmd','Recover-Cleanup.ps1','Recover-Cleanup.cmd','package-info.json','payload-manifest.json')){
+ foreach($name in @('PowerShell-Compat.ps1','Install-Common.ps1','Install-Core.ps1','Cleanup-Core.ps1','Feature-Settings.ps1','features.ini','MouseAim-Settings.ps1','MouseAim-Settings.ini','MouseAim-Settings-GUI.ps1','MouseAim-Settings-GUI.xaml','Keybinding-Settings.ps1','Keybindings.ini','Keybindings.schema.json','Keybindings-GUI.ps1','Keybindings-GUI.xaml','ExtraMods-Settings.ps1','ExtraMods-GUI.ps1','ExtraMods-GUI.xaml','app\App-Core.ps1','app\Host.ps1','app\Install-App.ps1','app\install.cmd','app\AC7.ico','app\update-key.xml','Discover-Installations.ps1','Gui-Core.ps1','Gui-Worker.ps1','Launcher-GUI.ps1','Launcher-GUI.xaml','CreeperUX-Theme.ps1','ui/creeperux/tokens.json','ui/creeperux/fonts/chakra-petch-600-latin.ttf','ui/creeperux/fonts/share-tech-mono-400-latin.ttf','Start-GUI.cmd','Setup.ps1','Setup.cmd','Run-Console.ps1','Mod-Mode.ps1','Enable-Mod.cmd','Disable-Mod.cmd','Recover-Cleanup.ps1','Recover-Cleanup.cmd','package-info.json','payload-manifest.json')){
   if(!(Test-Path -LiteralPath (Join-Path $PackageRoot $name) -PathType Leaf)){Stop-AC7Problem 'PACKAGE' "整合包不完整：缺少 $name。" '请重新解压完整的整合包。'}
  }
  $info=Get-AC7PackageInfo $PackageRoot
@@ -188,9 +189,9 @@ function Test-AC7Package([string]$PackageRoot) {
  }
  $dll=Join-Path $payload 'ue4ss\Mods\AC7MouseAim\Scripts\ac7_mouse_aim.dll'
  if($info.native_sha256 -and (Get-AC7FileHash -LiteralPath $dll).Hash -ne ([string]$info.native_sha256).ToUpperInvariant()){Stop-AC7Problem 'PACKAGE' '飞控 DLL 与 package-info.json 记录不一致。' '请重新下载并解压整合包。'}
- $null=Read-AC7MouseSettings (Join-Path $PackageRoot 'MouseAim-Settings.ini')
- $null=Read-AC7FeatureSettings (Join-Path $PackageRoot 'features.ini')
- $null=Read-AC7Keybindings (Join-Path $PackageRoot 'Keybindings.ini')
+ $null=Read-AC7MouseSettings (Get-AC7DataFile $PackageRoot 'MouseAim-Settings.ini')
+ $null=Read-AC7FeatureSettings (Get-AC7DataFile $PackageRoot 'features.ini')
+ $null=Read-AC7Keybindings (Get-AC7DataFile $PackageRoot 'Keybindings.ini')
  return $info
 }
 # Desired file set: payload files (AC7Weapons only when selected) with mods.txt, config.ini, camera-settings.lua
@@ -198,8 +199,8 @@ function Test-AC7Package([string]$PackageRoot) {
 function New-AC7InstallPlan([string]$PackageRoot,[ValidateSet('mouse','guidance','full','weapons')][string]$Features,[string]$LoaderRelative) {
  $layout=Get-AC7Layout;$Features=ConvertTo-AC7Features $Features
  $payload=[IO.Path]::GetFullPath((Join-Path $PackageRoot 'payload')).TrimEnd('\','/')
- $settings=Read-AC7MouseSettings (Join-Path $PackageRoot 'MouseAim-Settings.ini')
- $bindings=Read-AC7Keybindings (Join-Path $PackageRoot 'Keybindings.ini')
+ $settings=Read-AC7MouseSettings (Get-AC7DataFile $PackageRoot 'MouseAim-Settings.ini')
+ $bindings=Read-AC7Keybindings (Get-AC7DataFile $PackageRoot 'Keybindings.ini')
  $utf8=[Text.UTF8Encoding]::new($false);$plan=@()
  foreach($file in @(Get-ChildItem -LiteralPath $payload -File -Recurse -Force | Sort-Object FullName)){
   $relative=ConvertTo-AC7Relative $file.FullName.Substring($payload.Length+1)
@@ -282,7 +283,7 @@ function Import-AC7InstalledSettings([string]$PackageRoot,[string]$GameRoot,$Sta
  $configText=[IO.File]::ReadAllText((Get-AC7Target $GameRoot $layout.Config))
  $cameraText=''
  if(@($State.Entries | Where-Object {$_.Relative -ieq $layout.CameraSettings -and $_.Status -eq 'ok'}).Count){$cameraText=[IO.File]::ReadAllText((Get-AC7Target $GameRoot $layout.CameraSettings))}
- $mouse=Import-AC7MouseSettingsFromText $configText $cameraText (Read-AC7MouseSettings (Join-Path $PackageRoot 'MouseAim-Settings.ini'))
+ $mouse=Import-AC7MouseSettingsFromText $configText $cameraText (Read-AC7MouseSettings (Get-AC7DataFile $PackageRoot 'MouseAim-Settings.ini'))
  # 0.6.0 strokes are 1.4x the 0.5.3/0.5.4 ones at hud_line_width=1: rescale an imported multiplier so it looks the same.
  if([string]$State.Version -match '^0\.5\.[34]$' -and $null -ne $mouse.Values['hud_line_width']){
   $mouse.Values['hud_line_width']=[Math]::Round([Math]::Min([double]2,[Math]::Max([double]0.5,[double]$mouse.Values['hud_line_width']/1.4)),2)
@@ -291,13 +292,13 @@ function Import-AC7InstalledSettings([string]$PackageRoot,[string]$GameRoot,$Sta
  # 0.5.1 defaulted to the reticle inside the game HUD (hud_renderer 3); from 0.5.2 the default is the GPU overlay at
  # native resolution (1), so an imported 3 from 0.5.1 means "default" and moves to 1. 0.4.x/0.5.0 values (0/1) are kept.
  if([string]$State.Version -match '0\.5\.1' -and $mouse.Values['hud_renderer'] -eq 3){$mouse.Values['hud_renderer']=1;$mouse.Changed=@(@($mouse.Changed) | Where-Object {$_ -ne 'hud_renderer'})}
- $keys=Import-AC7KeybindingsFromText $configText (Read-AC7Keybindings (Join-Path $PackageRoot 'Keybindings.ini'))
+ $keys=Import-AC7KeybindingsFromText $configText (Read-AC7Keybindings (Get-AC7DataFile $PackageRoot 'Keybindings.ini'))
  if(@($mouse.Changed).Count){Save-AC7MouseSettings $PackageRoot $mouse.Values}
  if(@($keys.Changed).Count){Save-AC7Keybindings $PackageRoot $keys.Values}
  return @(@($mouse.Changed)+@($keys.Changed))
 }
 function Invoke-AC7Install {
- param([Parameter(Mandatory=$true)][string]$PackageRoot,[Parameter(Mandatory=$true)][string]$GameRoot,[ValidateSet('mouse','guidance','full','weapons')][string]$Features='full',[string]$SaveRoot,[switch]$CheckOnly,
+ param([Parameter(Mandatory=$true)][string]$PackageRoot,[Parameter(Mandatory=$true)][string]$GameRoot,[ValidateSet('mouse','guidance','full','weapons')][string]$Features='full',[string]$SaveRoot,[switch]$CheckOnly,[switch]$Repair,
   [switch]$TestOnlySkipExeHash,[int]$TestOnlyFaultAfter=-1,[switch]$TestOnlySkipRollback)
  $layout=Get-AC7Layout;$Features=ConvertTo-AC7Features $Features
  $package=[IO.Path]::GetFullPath($PackageRoot).TrimEnd('\','/')
@@ -311,12 +312,23 @@ function Invoke-AC7Install {
  $operation=Enter-AC7Operation $game
  try{
   $state=Get-AC7InstallState $game
+  $repaired=@()
+  if($Repair -and $state.Installed -and !$state.Pending){
+   # Repair (0.7.0): owned files that were changed or deleted (security software, manual edits) are restored from this
+   # package. A changed file is backed up first like every replaced file; a pending journal and unowned loaders still stop.
+   foreach($entry in @($state.Entries | Where-Object Status -eq 'changed')){$entry.SHA256=Get-AC7CurrentHash (Get-AC7Target $game $entry.Actual);$entry.Status='ok';$repaired+=$entry.Actual}
+   $repaired+=@($state.Entries | Where-Object Status -eq 'missing' | ForEach-Object Relative)
+   $state.Entries=@($state.Entries | Where-Object Status -ne 'missing');$state.Changed=@();$state.Missing=@()
+  }
   Assert-AC7StateUsable $state
   $loaderRelative=if($state.Mode -eq 'disabled'){$layout.DisabledLoader}else{$layout.Loader}
   $sameProject=$false
-  if($state.Installed -and $state.Project){try{$sameProject=[IO.Path]::GetFullPath($state.Project).TrimEnd('\','/').Equals($package,[StringComparison]::OrdinalIgnoreCase)}catch{$sameProject=$false}}
+  $project=Get-AC7ProjectRoot $package
+  if($state.Installed -and $state.Project){try{$sameProject=[IO.Path]::GetFullPath($state.Project).TrimEnd('\','/').Equals($project,[StringComparison]::OrdinalIgnoreCase)}catch{$sameProject=$false}}
   $imported=@()
   if($state.Installed -and !$sameProject -and !$CheckOnly){$imported=@(Import-AC7InstalledSettings $package $game $state)}
+  # One-time changes to the saved settings (war-default), after a takeover import so that imported values are covered.
+  if(!$CheckOnly){$null=Invoke-AC7SettingsMigrations $package $(if($imported.Count){[string]$state.Version}else{''})}
   $plan=@(New-AC7InstallPlan $package $Features $loaderRelative)
   $old=@{};foreach($entry in $state.Entries){$old[$entry.Actual]=$entry}
   $planned=@{};foreach($item in $plan){$planned[$item.Relative]=$item}
@@ -334,11 +346,11 @@ function Invoke-AC7Install {
   $obsolete=@($state.Entries | Where-Object {!$planned.ContainsKey($_.Actual)} | ForEach-Object {[pscustomobject]@{Relative=$_.Actual;Before=$_.SHA256}})
   $changes=@($targets | Where-Object {$_.Before -ne $_.After})
   $summary=[pscustomobject]@{GameRoot=$game;Version=[string]$info.version;Features=$Features;Mode=$(if($state.Mode -eq 'disabled'){'disabled'}else{'enabled'});Adopted=($state.Installed -and !$sameProject);WasInstalled=[bool]$state.Installed;PreviousVersion=$state.Version;
-   Files=$plan.Count;New=@($changes | Where-Object {!$_.Before}).Count;Updated=@($changes | Where-Object {$_.Before}).Count;Removed=$obsolete.Count;Imported=$imported;Backup=$null;SaveFiles=0;OtherMods=@($state.OtherMods);OtherLoaders=@($state.OtherLoaders)}
+   Files=$plan.Count;New=@($changes | Where-Object {!$_.Before}).Count;Updated=@($changes | Where-Object {$_.Before}).Count;Removed=$obsolete.Count;Imported=$imported;Repaired=$repaired;Backup=$null;SaveFiles=0;OtherMods=@($state.OtherMods);OtherLoaders=@($state.OtherLoaders)}
   if($CheckOnly){return $summary}
   Assert-AC7WriteAccess $game
   $stamp=(Get-Date -Format 'yyyyMMdd-HHmmss')+'-'+[guid]::NewGuid().ToString('N').Substring(0,8)
-  $backup=Join-Path $package ('backups\install-'+$stamp)
+  $backup=Join-Path (Get-AC7DataRoot $package) ('backups\install-'+$stamp)
   New-Item -ItemType Directory -Path $backup -Force | Out-Null
   Assert-AC7NoLinks $backup
   $summary.Backup=$backup
@@ -382,13 +394,16 @@ function Invoke-AC7Install {
    }
    Remove-AC7EmptyDirectories $game (Get-AC7ParentDirectories @($obsolete | ForEach-Object Relative))
    if($TestOnlyFaultAfter -ge 0 -and $step -ge $TestOnlyFaultAfter){throw 'TestOnly injected fault during install.'}
-   $manifest=[ordered]@{Tool=$layout.Tool;Version=[string]$info.version;Project=$package;GameRoot=$game;Features=$Features;ModState=$summary.Mode;
+   $manifest=[ordered]@{Tool=$layout.Tool;Version=[string]$info.version;Project=$project;GameRoot=$game;Features=$Features;ModState=$summary.Mode;
     Files=@($plan | ForEach-Object {[ordered]@{Relative=$_.Relative;SHA256=$_.SHA256}});UTC=[DateTime]::UtcNow.ToString('o');Backup=$backup;TransactionId=$id}
    if($state.Installed -and !$sameProject){$manifest['PreviousProject']=$state.Project;$manifest['PreviousVersion']=$state.Version}
    Write-AC7Json $manifest (Join-Path $game $layout.Manifest)
    $verify=Get-AC7InstallState $game
    if(@($verify.Entries | Where-Object Status -ne 'ok').Count -or @($verify.Entries).Count -ne $plan.Count -or @($verify.UnownedLoader).Count){throw 'Post-install verification failed.'}
    Remove-Item -LiteralPath (Join-Path $game $layout.Pending) -Force
+   # Other UE4SS mods of the player's library follow the install (0.7.0); a failure here does not undo the install.
+   $extra=try{Sync-AC7ExtraMods $package $game}catch{[pscustomobject]@{Applied=$false;Deployed=@();Removed=@();Conflicts=@();Kept=@();Message=('附加 Mod 未同步：'+$_.Exception.Message)}}
+   $summary | Add-Member -NotePropertyName ExtraMods -NotePropertyValue $extra -Force
   }catch{
    $failure=$_
    if($TestOnlySkipRollback){throw}
@@ -407,6 +422,7 @@ function Format-AC7InstallSummary($Summary) {
  $text+=' 新增 '+$Summary.New+' 个、更新 '+$Summary.Updated+' 个、移除 '+$Summary.Removed+' 个文件，全部逐个校验。'
  if(@($Summary.Imported).Count){$text+=' 已从原安装导入设置：'+(@($Summary.Imported) -join '、')+'。'}
  if($Summary.Backup){$text+=' 存档（'+$Summary.SaveFiles+' 个文件）与原文件备份：'+$Summary.Backup+'。'}
+ if($Summary.PSObject.Properties['ExtraMods'] -and $Summary.ExtraMods -and (@($Summary.ExtraMods.Deployed).Count -or @($Summary.ExtraMods.Removed).Count -or @($Summary.ExtraMods.Conflicts).Count -or @($Summary.ExtraMods.Kept).Count -or !$Summary.ExtraMods.Applied)){$text+=' 附加 Mod：'+$Summary.ExtraMods.Message}
  if($Summary.Mode -eq 'disabled'){$text+=' Mod 仍处于停用状态（原版启动）；需要单人 Mod 时点击“启用 Mod”。'}
  else{$text+=' 仅限单人；进入多人对战前请先退出游戏并“停用 Mod”。'}
  return $text
@@ -480,8 +496,8 @@ function Sync-AC7GameConfig([string]$PackageRoot,[string]$GameRoot) {
    if($entry.Count -ne 1 -or $entry[0].Status -ne 'ok'){$result.Message="游戏中的 $relative 已被修改或缺失，未覆盖；已保存到本包。";return $result}
    $entries[$relative]=$entry[0]
   }
-  $settings=Read-AC7MouseSettings (Join-Path $PackageRoot 'MouseAim-Settings.ini')
-  $bindings=Read-AC7Keybindings (Join-Path $PackageRoot 'Keybindings.ini')
+  $settings=Read-AC7MouseSettings (Get-AC7DataFile $PackageRoot 'MouseAim-Settings.ini')
+  $bindings=Read-AC7Keybindings (Get-AC7DataFile $PackageRoot 'Keybindings.ini')
   $utf8=[Text.UTF8Encoding]::new($false);$writes=@()
   foreach($relative in $layout.Config,$layout.CameraSettings){
    $path=Get-AC7Target $game $relative;$text=[IO.File]::ReadAllText($path)

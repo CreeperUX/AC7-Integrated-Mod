@@ -207,6 +207,8 @@ std::atomic<int> hud_target_hz{120},hud_renderer{1};
 std::atomic<bool> hud_connector{true},hud_link_always{false};
 // Reference gun cross: startup value from hud_boresight, Alt+F7 toggles it for the session.
 std::atomic<bool> hud_boresight{true};
+// Flight recording (2.4.3): FE trace + Shadow CSV only when flight_recording=1 (launcher checkbox); read at startup.
+std::atomic<bool> flight_recording{false};
 std::atomic<uint64_t> boresight_notice_until{0};
 std::atomic<float> hud_opacity{.65f};
 std::atomic<float> hud_line_width{1.f};
@@ -273,7 +275,7 @@ void load_config() {
     config.mouse_reference_fov=std::clamp(read_config_float(L"mouse_reference_fov",62),30.0f,150.0f);input_reference_fov=config.mouse_reference_fov;
     config.arrival_braking=std::clamp(read_config_float(L"arrival_braking",1.15f),1.0f,1.35f);
     model_assist_enabled.store(read_config_int(L"model_assist",1)!=0);
-    control_mode.store(control_modes::normalize(read_config_int(L"control_mode",0)));mode_notice_pending=true;
+    control_mode.store(control_modes::normalize(read_config_int(L"control_mode",control_modes::default_mode)));mode_notice_pending=true;
     config.model_assist_strength=std::clamp(read_config_float(L"model_assist_strength",.20f),0.f,.35f);
     // AC7 0.5.2: 1 = whole reticle on the GPU overlay at native resolution (default: the game HUD layer is a 1920x1080
     // target with glow, soft and jagged at 4K); 3 = reticle inside the game HUD (native_hud.lua) + GPU panel/notices.
@@ -281,6 +283,7 @@ void load_config() {
     config.manual_ws_pitch=read_config_int(L"manual_ws_pitch",1)!=0;
     hud_connector.store(read_config_int(L"hud_connector",1)!=0);
     hud_link_always.store(read_config_int(L"hud_link_always",0)!=0);
+    flight_recording.store(read_config_int(L"flight_recording",0)!=0);
     hud_boresight.store(read_config_int(L"hud_boresight",1)!=0);log_line("HUD_BORESIGHT startup=%d (hud_boresight; Alt+F7 toggles)",hud_boresight.load()?1:0);
     hud_opacity.store(std::clamp(read_config_float(L"hud_opacity",.65f),.15f,1.f));
     hud_line_width.store(std::clamp(read_config_float(L"hud_line_width",1.f),.5f,2.f));
@@ -834,16 +837,16 @@ void __fastcall fe_input_stage(void* core_ptr,float dt){
     const bool own_pitch=(release&1)!=0,own_yaw=(release&2)!=0,own_roll=(release&4)!=0;
     __try{
         // Keyboard takeover (AC8 2.4.2): a channel that has just passed to a held key continues from the keyboard-only
-        // command state instead of re-ramping from the instructor's last command. The direction is the game's own key
-        // value on that owned, unwritten raw channel (the convention of S); the simulated keyboard state follows the
-        // held-key direction, so it is mapped onto S's convention by comparing the two signs.
+        // command state instead of re-ramping from the instructor's last command. d is the game's own key value sign on
+        // that owned, unwritten raw channel (the convention of S); seed_value is the keyboard ramp measured along the
+        // held key (manual_takeover.h, AC8 ce0d3b1), so it does not depend on how the keys map onto S's signs.
         float* S=reinterpret_cast<float*>(core+fe_runtime::C_S);const float before[3]={S[0],S[1],S[2]};bool seeded=false;
         const size_t raw_of[3]={fe_runtime::C_RAW_PITCH,fe_runtime::C_RAW_YAW,fe_runtime::C_RAW_ROLL};
         for(int a=0;a<3;++a){
             const float key_value=*reinterpret_cast<float*>(core+raw_of[a]);
             if(!fe_runtime::manual.seed[a]||key_value==0.f||dir[a]==0)continue;
-            const double d=key_value>0?1.:-1.,m=fe_runtime::manual.seed_value[a]*d*dir[a];
-            const float v=static_cast<float>(manual_takeover::seeded(S[a],m,d));
+            const double d=key_value>0?1.:-1.;
+            const float v=static_cast<float>(manual_takeover::seeded(S[a],fe_runtime::manual.seed_value[a],d));
             if(v!=S[a]){S[a]=v;seeded=true;}
         }
         if(seeded)log_line("KEY_TAKEOVER owned=%d S pitch %.2f->%.2f yaw %.2f->%.2f roll %.2f->%.2f",fe_runtime::manual.s.owned,
@@ -921,7 +924,7 @@ extern "C" __declspec(dllexport) int ac7_mouseaim_start(lua_State* state) {
     }
     load_config();
     log_line("CAMERA_SETTINGS mode=%d distance_m=%.1f height_m=%.1f F3=toggle; mission/cinematic recenter enabled",camera_view_mode.load(),camera_distance_cm.load()/100,camera_height_cm.load()/100);
-    log_line("PROFILE AC7-0.6.0-beta.1 CORE=AC8-2.4.2 WAR=13.8+FE-AC7-EXACT GPU-RETICLE-NATIVE-RES THIN-LINES MISSILE-TIERS HUD=GUNCROSS-TOGGLE+HMD-FREELOOK KEY-TAKEOVER-SEED LEVEL-REARM PEACE-BANK-GOAL WAR=FE-EXACT-WT PATH-LOCK QUINTIC-LEVEL IDLE-GATE-LEVEL ROLL-PREDICT-NEAR AIM-WINDOW CAMERA-FAULT-RETRY HIL-TUNED WT-LEVEL WT-OVERRIDE WAR-DEGRADED=V11.1 PEACE-WAR-CYCLE CONTROL default_mode=%d sensitivity=%.4f hud_target_hz=%d reference_fov=%.1f braking=%.2f",control_mode.load(),config.sensitivity,hud_target_hz.load(),config.mouse_reference_fov,config.arrival_braking);
+    log_line("PROFILE AC7-0.7.0-beta.1 CORE=AC8-2.5.0 WAR=13.8+FE-AC7-EXACT GPU-RETICLE-NATIVE-RES+DCOMP-SURFACE THIN-LINES MISSILE-TIERS WAR-DEFAULT HUD=GUNCROSS-TOGGLE+HMD-FREELOOK KEY-TAKEOVER-SEED FLIGHT-REC-OPT LEVEL-REARM PEACE-BANK-GOAL WAR=FE-EXACT-WT PATH-LOCK QUINTIC-LEVEL IDLE-GATE-LEVEL ROLL-PREDICT-NEAR AIM-WINDOW CAMERA-FAULT-RETRY HIL-TUNED WT-LEVEL WT-OVERRIDE WAR-DEGRADED=V11.1 PEACE-WAR-CYCLE CONTROL default_mode=%d sensitivity=%.4f hud_target_hz=%d reference_fov=%.1f braking=%.2f",control_mode.load(),config.sensitivity,hud_target_hz.load(),config.mouse_reference_fov,config.arrival_braking);
     if (!prepare_hook()) return 0;
     if(!install_native_camera())return 0;
     helmet::install();
@@ -930,7 +933,8 @@ extern "C" __declspec(dllexport) int ac7_mouseaim_start(lua_State* state) {
     } else {
         log_line("warning raw input hook unavailable; using DirectInput fallback");
     }
-    shadow_start();
+    if(flight_recording.load()){shadow_start();fe_runtime::trace_enabled=true;log_line("FLIGHT_RECORDING on: FE and Shadow CSV in Logs (flight_recording=1)");}
+    else log_line("FLIGHT_RECORDING off: no FE/Shadow CSV (flight_recording=0); this text log only");
     running.store(true);
     std::thread(mouse_loop).detach();
     std::thread(overlay_loop).detach();

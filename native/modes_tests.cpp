@@ -2,6 +2,7 @@
 #include <cassert>
 #include <cstdio>
 int main(){
+ assert(control_modes::default_mode==3&&control_modes::normalize(control_modes::default_mode)==3); // WAR by default
  assert(control_modes::normalize(0)==0&&control_modes::normalize(1)==0&&control_modes::normalize(2)==3&&control_modes::normalize(3)==3);
  assert(control_modes::normalize(4)==3&&control_modes::normalize(5)==3&&control_modes::normalize(9)==3&&control_modes::normalize(-2)==0);
  assert(control_modes::next(0)==3&&control_modes::next(1)==3&&control_modes::next(3)==0&&control_modes::next(2)==0&&control_modes::next(4)==0&&control_modes::next(5)==0);

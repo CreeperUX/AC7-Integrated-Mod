@@ -40,3 +40,34 @@ function Get-AC7BytesHash([byte[]]$Bytes){
  $sha=[Security.Cryptography.SHA256]::Create()
  try{return [BitConverter]::ToString($sha.ComputeHash($Bytes)).Replace('-','')}finally{$sha.Dispose()}
 }
+# Installed app (0.7.0, as AC8 2.5.0): <install>\versions\<version>\ is a complete package marked by app-version.json;
+# player data (settings, key bindings, scope, paths, backups, diagnostics, sessions) is shared in <install>\data.
+# Without the marker the package is portable and keeps its data in its own folder (behaviour of 0.6.x).
+function Get-AC7AppInfo([string]$PackageRoot){
+ $package=[IO.Path]::GetFullPath($PackageRoot).TrimEnd('\','/')
+ $marker=[IO.Path]::Combine($package,'app-version.json')
+ if(![IO.File]::Exists($marker)){return $null}
+ $versions=[IO.Path]::GetDirectoryName($package);$install=$null;$version=$null
+ if($versions){$install=[IO.Path]::GetDirectoryName($versions)}
+ try{$version=[string]([IO.File]::ReadAllText($marker) | ConvertFrom-Json).version}catch{$version=$null}
+ $data=if($install){[IO.Path]::Combine($install,'data')}else{$null}
+ if(!$install -or !$version -or [IO.Path]::GetFileName($versions) -ne 'versions' -or [IO.Path]::GetFileName($package) -ne $version -or ![IO.Directory]::Exists($data)){
+  $failure=New-Object InvalidOperationException("安装版目录结构不完整：$package")
+  $failure.Data['AC7Code']='APP_LAYOUT';$failure.Data['AC7Hint']='请在开始菜单打开 AC7 Integrated，使用“检查并修复”；仍不能解决时重新运行安装程序（设置不会丢失）。'
+  throw $failure
+ }
+ return [pscustomobject]@{Version=$version;PackageRoot=$package;InstallRoot=$install;DataRoot=$data}
+}
+# Folder for player data. Idempotent: the data folder itself (no marker) maps to itself.
+function Get-AC7DataRoot([string]$PackageRoot){
+ $app=Get-AC7AppInfo $PackageRoot
+ if($app){return $app.DataRoot}
+ return [IO.Path]::GetFullPath($PackageRoot).TrimEnd('\','/')
+}
+function Get-AC7DataFile([string]$PackageRoot,[string]$Name){return [IO.Path]::Combine((Get-AC7DataRoot $PackageRoot),$Name)}
+# Owner identity recorded in the game folder: the install root for the app (stable across versions), else the package.
+function Get-AC7ProjectRoot([string]$PackageRoot){
+ $app=Get-AC7AppInfo $PackageRoot
+ if($app){return $app.InstallRoot}
+ return [IO.Path]::GetFullPath($PackageRoot).TrimEnd('\','/')
+}

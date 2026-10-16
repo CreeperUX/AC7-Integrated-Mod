@@ -10,6 +10,7 @@ function Get-AC7SettingControlValues($Context) {
  $values=[ordered]@{}
  foreach($spec in Get-AC7MouseSettingSpec){
   $control=$Context.Controls[$spec.Name]
+  if(!$control){$values[$spec.Name]=[double]$Context.Values[$spec.Name];continue}
   switch($spec.Kind){
    'bool'{$values[$spec.Name]=if($control.IsChecked){1.0}else{0.0}}
    'choice'{if(!$control.SelectedItem){throw "请选择：$($spec.Label)。"};$values[$spec.Name]=[double]$control.SelectedItem.Tag}
@@ -31,13 +32,15 @@ function New-AC7MouseSettingsDialog([string]$Root,$Owner,[ValidateSet('dark','li
  $xml=[xml](Get-Content -LiteralPath (Join-Path $PSScriptRoot 'MouseAim-Settings-GUI.xaml') -Raw -Encoding UTF8)
  $dialog=[Windows.Markup.XamlReader]::Load([Xml.XmlNodeReader]::new($xml));if($Owner){$dialog.Owner=$Owner}
  Set-CreeperUXTheme $dialog $Theme
+ if(Get-Command Set-AC7WindowIcon -ErrorAction SilentlyContinue){Set-AC7WindowIcon $dialog}
  $area=[Windows.SystemParameters]::WorkArea;$dialog.Width=[Math]::Min($dialog.Width,$area.Width-24);$dialog.Height=[Math]::Min($dialog.Height,$area.Height-24);$dialog.MinWidth=[Math]::Min($dialog.MinWidth,$dialog.Width);$dialog.MinHeight=[Math]::Min($dialog.MinHeight,$dialog.Height)
- $values=Read-AC7MouseSettings (Join-Path $Root 'MouseAim-Settings.ini')
+ $values=Read-AC7MouseSettings (Get-AC7DataFile $Root 'MouseAim-Settings.ini')
  # Closures resolve commands only at global scope (see Keybindings-GUI.ps1): carry function references on the context.
  $commands=@{Collect=${function:Get-AC7SettingControlValues};Save=${function:Save-AC7MouseSettingsFromDialog};Defaults=${function:Get-AC7DefaultMouseSettings};Spec=${function:Get-AC7MouseSettingSpec};SetValue=${function:Set-AC7SettingControlValue}}
- $ctx=[pscustomobject]@{Window=$dialog;State=@{Saved=$false;Message=''};Controls=@{};Status=$dialog.FindName('SettingsStatus');Save=$dialog.FindName('SaveSettings');Root=$Root;GameRoot=$GameRoot;Commands=$commands}
+ $ctx=[pscustomobject]@{Window=$dialog;State=@{Saved=$false;Message=''};Controls=@{};Status=$dialog.FindName('SettingsStatus');Save=$dialog.FindName('SaveSettings');Root=$Root;GameRoot=$GameRoot;Values=$values;Commands=$commands}
  $groups=@{control='ControlRows';camera='CameraRows';hud='HudRows';assist='AssistRows'}
  foreach($spec in Get-AC7MouseSettingSpec){
+  if(!$groups.ContainsKey($spec.Group)){continue}   # launcher-only rows (flight_recording)
   $row=[Windows.Controls.Grid]::new();$row.Margin=[Windows.Thickness]::new(0,0,0,10)
   $column=[Windows.Controls.ColumnDefinition]::new();$column.Width=[Windows.GridLength]::new(1,[Windows.GridUnitType]::Star);[void]$row.ColumnDefinitions.Add($column)
   $column=[Windows.Controls.ColumnDefinition]::new();$column.Width=[Windows.GridLength]::new(156);[void]$row.ColumnDefinitions.Add($column)
@@ -62,7 +65,7 @@ function New-AC7MouseSettingsDialog([string]$Root,$Owner,[ValidateSet('dark','li
  $dialog.FindName('TargetInfo').Text=if($GameRoot){'保存到本包的 MouseAim-Settings.ini，并在已安装时写入游戏：'+$GameRoot+'\ue4ss\Mods\AC7MouseAim\config.ini。'}else{'未选择游戏位置：只保存到本包的 MouseAim-Settings.ini，安装或更新时写入游戏。'}
  $dialog.FindName('RestoreSettings').Add_Click({
   $defaults=& $ctx.Commands.Defaults
-  foreach($spec in (& $ctx.Commands.Spec)){& $ctx.Commands.SetValue $ctx.Controls[$spec.Name] $spec ([double]$defaults[$spec.Name])}
+  foreach($spec in (& $ctx.Commands.Spec)){if($ctx.Controls[$spec.Name]){& $ctx.Commands.SetValue $ctx.Controls[$spec.Name] $spec ([double]$defaults[$spec.Name])}}
   $ctx.Status.Text='已恢复默认；点击保存应用，或取消放弃。'
  }.GetNewClosure())
  $dialog.FindName('CancelSettings').Add_Click({$ctx.Window.Close()}.GetNewClosure())

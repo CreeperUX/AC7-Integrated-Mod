@@ -18,7 +18,7 @@ function Copy-AC7RuntimeLogs([string]$GameRoot,[string]$Destination) {
 }
 function Invoke-AC7CollectLogs([string]$PackageRoot,[string]$GameRoot) {
  $game=Resolve-AC7GameRoot $GameRoot
- $destination=Join-Path $PackageRoot ('sessions\flight-'+(Get-Date -Format 'yyyyMMdd-HHmmss'))
+ $destination=Join-Path (Get-AC7DataRoot $PackageRoot) ('sessions\flight-'+(Get-Date -Format 'yyyyMMdd-HHmmss'))
  $copied=@(Copy-AC7RuntimeLogs $game $destination)
  $log=Join-Path $destination 'UE4SS.log'
  if(!(@($copied | Where-Object {$_ -ne 'ue4ss\Mods\AC7MouseAim\config.ini'})).Count){
@@ -71,7 +71,7 @@ function Invoke-AC7Cleanup {
    $result.Message='可删除 '+$removable.Count+' 个校验一致的文件；'+$retainedEntries.Count+' 个被修改的文件会备份并保留。未修改任何文件。'
    return $result
   }
-  $backup=Join-Path $package ('cleanup-backups\'+(Get-Date -Format 'yyyyMMdd-HHmmss')+'-'+[guid]::NewGuid().ToString('N').Substring(0,8))
+  $backup=Join-Path (Get-AC7DataRoot $package) ('cleanup-backups\'+(Get-Date -Format 'yyyyMMdd-HHmmss')+'-'+[guid]::NewGuid().ToString('N').Substring(0,8))
   New-Item -ItemType Directory -Path $backup -Force | Out-Null
   Assert-AC7NoLinks $backup
   $result.Backup=$backup
@@ -84,6 +84,8 @@ function Invoke-AC7Cleanup {
   }
   Copy-Item -LiteralPath (Join-Path $game $layout.Manifest) -Destination (Join-Path $backup 'AC7-MouseAim-owner.json') -Force
   $result.Logs=@(Copy-AC7RuntimeLogs $game (Join-Path $backup 'logs'))
+  # Other UE4SS mods deployed by this tool go first (only recorded, unchanged files; the player's library is kept).
+  $extra=try{Sync-AC7ExtraMods $package $game -RemoveAll}catch{[pscustomobject]@{Removed=@();Kept=@();Message=('附加 Mod 未移除：'+$_.Exception.Message)}}
   $report=[ordered]@{Version=1;GameRoot=$game;Status='backup-verified';Removed=@();Retained=@($retainedEntries | ForEach-Object Actual);Missing=$result.Missing;Logs=$result.Logs}
   $reportPath=Join-Path $backup 'cleanup-report.json'
   Write-AC7Json $report $reportPath
@@ -105,7 +107,8 @@ function Invoke-AC7Cleanup {
   if($result.Retained.Count){$text+=' 以下文件与安装时不同，已备份但未删除：'+($result.Retained -join '、')+'；确认不再需要后可手动删除。'}
   if(@($result.Retained | Where-Object {$_ -ieq $layout.Loader}).Count){$text+=' 注意：加载器 dwmapi.dll 仍在游戏目录中，联机前必须手动处理。'}
   if($result.Missing.Count){$text+=' 记录中已缺失的文件：'+($result.Missing -join '、')+'。'}
-  $text+=' 运行日志与其他 Mod 文件夹保留在游戏目录中。'
+  if(@($extra.Removed).Count -or @($extra.Kept).Count -or !$extra.PSObject.Properties['Applied']){$text+=' 附加 Mod：'+$extra.Message}
+  $text+=' 运行日志与其他 Mod 文件夹保留在游戏目录中；附加 Mod 仍在本工具的 Mod 库中，重新安装时会再部署。'
   $result.Message=$text
   return $result
  }finally{Exit-AC7Operation $operation}

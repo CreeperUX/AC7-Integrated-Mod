@@ -1,7 +1,7 @@
 ﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'Install-Common.ps1')
 . (Join-Path $PSScriptRoot 'Feature-Settings.ps1')
-$file=Join-Path $PSScriptRoot 'features.ini';$previous=Read-AC7FeatureSettings $file
+$file=Get-AC7DataFile $PSScriptRoot 'features.ini';$previous=Read-AC7FeatureSettings $file
 $default=switch($previous.Features){'mouse'{'1'} 'guidance'{'2'} default{'3'}}
 Write-Host '1. 仅鼠标飞控 / Mouse aim only'
 Write-Host ('   '+(Get-AC7FeatureDescription 'mouse'))

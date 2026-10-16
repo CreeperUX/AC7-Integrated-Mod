@@ -5,6 +5,8 @@ namespace control_modes {
 // the reverse-engineered AC8 rotation law, stock stick input); WAR v11.1 is no longer selectable and only
 // serves as WAR's automatic degraded mode (state/parameter/calibration failures). Legacy IDs: 1 -> PEACE;
 // 2 (CAPTURE), 4 (WAR1), 5 (WAR2) -> WAR.
+// Startup mode when config.ini has no control_mode line: WAR (AC8 2.5.0 / AC7 0.7.0; PEACE before).
+constexpr int default_mode=3;
 inline int normalize(int mode){mode=std::clamp(mode,0,5);return mode>=2?3:0;}
 inline int next(int mode){return normalize(mode)==0?3:0;}
 inline const char* name(int mode){return normalize(mode)==3?"WAR":"PEACE";}

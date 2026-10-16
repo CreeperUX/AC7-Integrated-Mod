@@ -21,7 +21,8 @@ function Get-AC7MouseSettingSpec {
   @('hud_boresight','机头参考准星','bool',0,1,1,'hud','config','Alt+F7 在本次运行中临时切换'),
   @('model_assist','模型制动辅助','bool',0,1,1,'assist','config','接近目标时的有界制动'),
   @('model_assist_strength','辅助强度','number',0,0.35,0.20,'assist','config','越大越早开始制动'),
-  @('arrival_braking','到达制动','number',1,1.35,1.15,'assist','config','1 = 旧版制动')
+  @('arrival_braking','到达制动','number',1,1.35,1.15,'assist','config','1 = 旧版制动'),
+  @('flight_recording','保存飞行记录','bool',0,1,0,'launcher','config','飞行数据 CSV（FE／Shadow），用于分析问题；关闭时只保留文本日志')
  )
  $choices=@{
   control_mode=@([pscustomobject]@{Value=0;Label='PEACE · 经典飞控'},[pscustomobject]@{Value=3;Label='WAR · 精确飞行引擎'})
@@ -87,7 +88,7 @@ function Save-AC7MouseSettings([string]$Root,$Values,[string]$GameRoot) {
  Assert-AC7MouseSettings $Values
  $lines=@('; AC7 mouse-aim settings. Saved by Start-GUI.cmd > 飞控设置; written into the installed config.ini.','; Edit while the game is closed. control_mode: 0=PEACE, 3=WAR. hud_renderer: 1=GPU overlay at native resolution, 3=reticle in the game HUD + GPU panel, 0=legacy windows.')
  foreach($spec in Get-AC7MouseSettingSpec){$lines+=($spec.Name+'='+(Format-AC7Number ([double]$Values[$spec.Name])))}
- Write-AC7TextAtomic (Join-Path $Root 'MouseAim-Settings.ini') (($lines -join "`r`n")+"`r`n") -Bom
+ Write-AC7TextAtomic (Get-AC7DataFile $Root 'MouseAim-Settings.ini') (($lines -join "`r`n")+"`r`n") -Bom
 }
 function Test-AC7SameValue([string]$Old,[string]$New) {
  $a=0.0;$b=0.0;$style=[Globalization.NumberStyles]::Float;$culture=[Globalization.CultureInfo]::InvariantCulture
@@ -174,4 +175,27 @@ function Import-AC7MouseSettingsFromText([string]$ConfigText,[string]$CameraText
   }catch{}
  }
  return [pscustomobject]@{Values=$values;Changed=$imported}
+}
+# One-time changes to the player's saved settings, recorded in migrations.json next to them so that a later choice is
+# never overwritten (as AC8 2.5.0). war-default-0.7.0: WAR becomes the startup flight control; a saved PEACE moves to
+# WAR once, F4 still switches back. Returns the names applied now. An unreadable settings file is left for the normal
+# error path and the migration is retried after it is fixed.
+function Invoke-AC7SettingsMigrations([string]$PackageRoot,[string]$SourceVersion=''){
+ # SourceVersion: the version that saved the current values (an install just taken over). Values saved by 0.7.0 or
+ # later already went through war-default, so a PEACE there is the player's choice: only recorded, not changed.
+ $migrated=$false
+ if($SourceVersion -match '(\d+)\.(\d+)\.\d+'){$migrated=([int]$Matches[1] -gt 0 -or [int]$Matches[2] -ge 7)}
+ $data=Get-AC7DataRoot $PackageRoot;$record=Join-Path $data 'migrations.json';$done=@()
+ if(Test-Path -LiteralPath $record -PathType Leaf){$saved=Get-Content -LiteralPath $record -Raw -Encoding UTF8 | ConvertFrom-Json;$done=@($saved.applied | ForEach-Object {[string]$_})}
+ $applied=@()
+ if($done -notcontains 'war-default-0.7.0'){
+  $ini=Join-Path $data 'MouseAim-Settings.ini';$ok=$true
+  if(Test-Path -LiteralPath $ini -PathType Leaf){
+   try{$values=Read-AC7MouseSettings $ini}catch{$ok=$false}
+   if($ok -and !$migrated -and $values.control_mode -eq 0){$values.control_mode=3;Save-AC7MouseSettings $PackageRoot $values}
+  }
+  if($ok){$applied+='war-default-0.7.0'}
+ }
+ if($applied.Count){Write-AC7TextAtomic $record ((ConvertTo-Json -InputObject ([pscustomobject]@{applied=@($done+$applied)}))+"`r`n")}
+ return $applied
 }

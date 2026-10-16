@@ -27,7 +27,7 @@ $realBefore=if(Test-Path -LiteralPath $realManifest){(Get-FileHash -LiteralPath 
 $pkg=Join-Path $work 'pkg'
 New-Item -ItemType Directory -Path $pkg | Out-Null
 Get-ChildItem -LiteralPath $source -File | Where-Object {$_.Extension -in '.ps1','.xaml','.json','.ini','.cmd','.txt','.md'} | ForEach-Object {Copy-Item -LiteralPath $_.FullName -Destination $pkg}
-foreach($dir in 'payload','ui'){Copy-Item -LiteralPath (Join-Path $source $dir) -Destination (Join-Path $pkg $dir) -Recurse}
+foreach($dir in 'payload','ui','app'){Copy-Item -LiteralPath (Join-Path $source $dir) -Destination (Join-Path $pkg $dir) -Recurse}
 # Paths remembered by the user's launcher must not leak into the copy (tests expect no saved game/Steam path).
 foreach($name in 'game-path.txt','steam-path.txt'){[IO.File]::WriteAllText((Join-Path $pkg $name),'',[Text.UTF8Encoding]::new($false))}
 . (Join-Path $pkg 'Gui-Core.ps1')
@@ -220,6 +220,7 @@ $payload=Join-Path $pkg 'payload'
 $codexConfig=[IO.File]::ReadAllText((Join-Path $payload $layout.Config))
 $codexConfig=$codexConfig -replace "\r\n\r\n; Reference gun cross[^\r\n]*\r\nhud_boresight=1",''
 $codexConfig=$codexConfig -replace "\r\n; Reticle stroke width[^\r\n]*\r\nhud_line_width=1",''
+$codexConfig=$codexConfig -replace "\r\n; Flight recording:[^\r\n]*\r\nflight_recording=0",''
 $codexConfig=$codexConfig.Substring(0,$codexConfig.IndexOf("`r`n; Additional optical"))
 $codexConfig=$codexConfig.Replace("; 1 = reticle (ring, gun cross, HMD rings, ticks), panel and notices on the GPU overlay at native resolution (default);`r`n; 3 = reticle inside the game HUD layer (1920x1080, HUD glow) + GPU panel/notices; 0 = legacy small windows.`r`n; Backend selected at startup.`r`nhud_renderer=1","; GPU compositor=1, legacy small windows=0. Backend selected at startup.`r`nhud_renderer=1")
 # The 0.5.0 config.ini is a pure extension: removing the added lines gives back the deployed Codex/0.5.0-stage file.
@@ -245,6 +246,8 @@ $text=Invoke-Tool 'Setup.ps1' @('-GameRoot',$game2,'-Features','weapons','-Yes',
 if($text -notmatch '被修改过' -or (Get-Snapshot $game2) -ne $before){throw 'Changed Codex file did not block adoption'}
 [IO.File]::WriteAllBytes($spec,$specBytes)
 Pass 'Codex-style manifest recognised; a modified file in it blocks adoption without changes'
+# As a fresh 0.7.0 package: no migration recorded yet, so the imported PEACE (saved before 0.7.0) moves to WAR once.
+Remove-Item -LiteralPath (Join-Path $pkg 'migrations.json') -Force -ErrorAction SilentlyContinue
 $text=Invoke-Tool 'Setup.ps1' @('-GameRoot',$game2,'-Features','weapons','-Yes','-SaveRoot',$save,'-TestOnlySkipExeHash')
 if($text -notmatch 'INSTALLED features=full mode=enabled new=4 updated=\d+ removed=0'){throw "Adoption summary unexpected:`n$text"}
 $state=Assert-Clean $game2 $payloadCount
@@ -253,11 +256,12 @@ if([IO.File]::ReadAllText((Join-Path $game2 $layout.Config)) -notmatch "(?m)^hud
 # Keys present in the installed files win (sensitivity, control_mode, hud_opacity, follow_rate); keys the old
 # config never had (free_look_zoom, hud_boresight, [keybindings]) keep this package's values.
 $imported=Read-AC7MouseSettings (Join-Path $pkg 'MouseAim-Settings.ini')
-if($imported.sensitivity -ne 0.15 -or $imported.control_mode -ne 0 -or $imported.hud_opacity -ne 0.65 -or $imported.follow_rate -ne 8 -or $imported.free_look_zoom -ne 1.75){throw 'Settings were not imported from the adopted install'}
+if($imported.sensitivity -ne 0.15 -or $imported.control_mode -ne 3 -or $imported.hud_opacity -ne 0.65 -or $imported.follow_rate -ne 8 -or $imported.free_look_zoom -ne 1.75){throw 'Settings were not imported from the adopted install'}
 if((Read-AC7Keybindings (Join-Path $pkg 'Keybindings.ini')).free_look -ne 'V'){throw 'Package keybindings lost during import'}
 $config=[IO.File]::ReadAllText((Join-Path $game2 $layout.Config))
-if($config -notmatch '(?m)^sensitivity=0\.15\r$' -or $config -notmatch '(?m)^\[keybindings\]\r$'){throw 'Adopted config.ini not regenerated'}
-Pass 'adoption: Codex install taken over (ui-fonts added), user values imported (sensitivity 0.15, PEACE), manifest rewritten'
+if($config -notmatch '(?m)^sensitivity=0\.15\r$' -or $config -notmatch '(?m)^control_mode=3\r$' -or $config -notmatch '(?m)^\[keybindings\]\r$'){throw 'Adopted config.ini not regenerated'}
+if(@((Get-Content -LiteralPath (Join-Path $pkg 'migrations.json') -Raw | ConvertFrom-Json).applied) -notcontains 'war-default-0.7.0'){throw 'war-default not recorded after the takeover'}
+Pass 'adoption: Codex install taken over (ui-fonts added), user values imported (sensitivity 0.15; PEACE saved before 0.7.0 -> WAR once), manifest rewritten'
 # 0.5.1 defaulted to hud_renderer=3 (reticle in the game HUD); importing it from a 0.5.1 install gives the 0.5.2 default 1.
 $cfgPath=Join-Path $game2 $layout.Config;$cfgBytes=[IO.File]::ReadAllBytes($cfgPath)
 [IO.File]::WriteAllText($cfgPath,([IO.File]::ReadAllText($cfgPath) -replace '(?m)^hud_renderer=1(\r?)$','hud_renderer=3$1'),[Text.UTF8Encoding]::new($false))

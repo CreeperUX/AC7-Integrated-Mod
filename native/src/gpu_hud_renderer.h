@@ -7,9 +7,13 @@
 namespace gpu_hud {
 using Microsoft::WRL::ComPtr;
 struct Layout {std::wstring free_look_key=L"C",zoom_key=L"MouseRight";bool target=false,nose=false;hud_geometry::Point target_point,nose_point;float scale=1,opacity=.65f,link_opacity=1;bool connector=true,always=false,helmet_active=false;int mode_notice=-1,camera_notice=-1,helmet_notice=-1;float notice_alpha=1,sensitivity_notice=-1,zoom_notice=-1,zoom=1.75f,zoom_start=1.75f;int hud_hz=120;float source_hz=0,submit_hz=0;bool smoothing=false,independent=false,predicted=false;bool ui_only=false;float prediction_ms=0,prediction_shift=0;uint64_t prediction_fallbacks=0;bool settings=false;float sensitivity=.1f,configured_sensitivity=.1f,fov=62;unsigned pose_age=0;int selected_mode=0,selected_camera=1;int boresight_notice=-1;bool boresight_active=true;bool look=false,freelook=false;hud_geometry::Point look_point;float line_width=1;};
+// The overlay content is a DirectComposition surface, not a DXGI swap chain: ReShade/RenoDX hook every swap chain
+// (RenoDX rewrote ours to HDR10 and ReShade ran its present pass on it, turning the overlay opaque black). DComp
+// surfaces never pass through IDXGISwapChain, so the overlay stays plain premultiplied BGRA that Windows composes
+// as SDR content in both SDR and HDR desktops. Direct2D draws into a BGRA canvas that is copied into the surface.
 struct Renderer {
     ComPtr<ID3D11Device> device;ComPtr<ID3D11DeviceContext> immediate;
-    ComPtr<IDXGISwapChain1> swap;ComPtr<IDXGISwapChain2> swap2;
+    ComPtr<ID3D11Texture2D> canvas;ComPtr<IDCompositionSurface> surface;
     ComPtr<ID2D1Factory1> factory;ComPtr<ID2D1Device> d2device;ComPtr<ID2D1DeviceContext> dc;
     ComPtr<ID2D1Bitmap1> target;ComPtr<ID2D1SolidColorBrush> ink,outline;
     ComPtr<IDWriteFactory> text_factory;ComPtr<IDWriteTextFormat> text_format;
@@ -21,24 +25,26 @@ struct Renderer {
     ComPtr<ID2D1PathGeometry> brackets;float brackets_unit=0;
     bool bundled_fonts=false;
     ComPtr<IDCompositionDevice> composition;ComPtr<IDCompositionTarget> composition_target;ComPtr<IDCompositionVisual> visual;
-    HANDLE latency=nullptr;UINT width=0,height=0;
-    ~Renderer(){if(latency)CloseHandle(latency);if(dc)dc->SetTarget(nullptr);}
-    HRESULT bind_target(){
-        ComPtr<IDXGISurface> surface;HRESULT hr=swap->GetBuffer(0,IID_PPV_ARGS(surface.GetAddressOf()));if(FAILED(hr))return hr;
+    UINT width=0,height=0;DXGI_FORMAT surface_format=DXGI_FORMAT_UNKNOWN;
+    ~Renderer(){if(dc)dc->SetTarget(nullptr);}
+    // BGRA canvas (Direct2D target) plus a matching composition surface shown by the visual.
+    HRESULT bind_target(UINT w,UINT h){
+        D3D11_TEXTURE2D_DESC cd{};cd.Width=w;cd.Height=h;cd.MipLevels=1;cd.ArraySize=1;cd.Format=DXGI_FORMAT_B8G8R8A8_UNORM;
+        cd.SampleDesc.Count=1;cd.Usage=D3D11_USAGE_DEFAULT;cd.BindFlags=D3D11_BIND_RENDER_TARGET|D3D11_BIND_SHADER_RESOURCE;
+        HRESULT hr=device->CreateTexture2D(&cd,nullptr,canvas.GetAddressOf());if(FAILED(hr))return hr;
+        ComPtr<IDXGISurface> canvas_surface;hr=canvas.As(&canvas_surface);if(FAILED(hr))return hr;
         D2D1_BITMAP_PROPERTIES1 props=D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_TARGET|D2D1_BITMAP_OPTIONS_CANNOT_DRAW,D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,D2D1_ALPHA_MODE_PREMULTIPLIED),96,96);
-        hr=dc->CreateBitmapFromDxgiSurface(surface.Get(),&props,target.GetAddressOf());if(FAILED(hr))return hr;
-        dc->SetTarget(target.Get());dc->SetDpi(96,96);dc->SetAntialiasMode(D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);return S_OK;
+        hr=dc->CreateBitmapFromDxgiSurface(canvas_surface.Get(),&props,target.GetAddressOf());if(FAILED(hr))return hr;
+        dc->SetTarget(target.Get());dc->SetDpi(96,96);dc->SetAntialiasMode(D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+        if(composition){
+            surface.Reset();hr=composition->CreateSurface(w,h,DXGI_FORMAT_B8G8R8A8_UNORM,DXGI_ALPHA_MODE_PREMULTIPLIED,surface.GetAddressOf());if(FAILED(hr))return hr;
+            hr=visual->SetContent(surface.Get());if(FAILED(hr))return hr;
+        }
+        width=w;height=h;return S_OK;
     }
     HRESULT initialize(HWND window,UINT w,UINT h,const wchar_t* font_directory=nullptr){
         D3D_FEATURE_LEVEL level;HRESULT hr=D3D11CreateDevice(nullptr,D3D_DRIVER_TYPE_HARDWARE,nullptr,D3D11_CREATE_DEVICE_BGRA_SUPPORT,nullptr,0,D3D11_SDK_VERSION,device.GetAddressOf(),&level,immediate.GetAddressOf());if(FAILED(hr))return hr;
         ComPtr<IDXGIDevice> dxgi;hr=device.As(&dxgi);if(FAILED(hr))return hr;
-        ComPtr<IDXGIAdapter> adapter;hr=dxgi->GetAdapter(adapter.GetAddressOf());if(FAILED(hr))return hr;
-        ComPtr<IDXGIFactory2> dxgi_factory;hr=adapter->GetParent(IID_PPV_ARGS(dxgi_factory.GetAddressOf()));if(FAILED(hr))return hr;
-        DXGI_SWAP_CHAIN_DESC1 desc{};desc.Width=w;desc.Height=h;desc.Format=DXGI_FORMAT_B8G8R8A8_UNORM;desc.SampleDesc.Count=1;
-        desc.BufferUsage=DXGI_USAGE_RENDER_TARGET_OUTPUT;desc.BufferCount=2;desc.Scaling=DXGI_SCALING_STRETCH;desc.SwapEffect=DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;desc.AlphaMode=DXGI_ALPHA_MODE_PREMULTIPLIED;desc.Flags=DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
-        hr=dxgi_factory->CreateSwapChainForComposition(device.Get(),&desc,nullptr,swap.GetAddressOf());if(FAILED(hr))return hr;
-        hr=swap.As(&swap2);if(FAILED(hr))return hr;hr=swap2->SetMaximumFrameLatency(1);if(FAILED(hr))return hr;
-        latency=swap2->GetFrameLatencyWaitableObject();if(!latency)return E_FAIL;
         hr=D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED,__uuidof(ID2D1Factory1),nullptr,reinterpret_cast<void**>(factory.GetAddressOf()));if(FAILED(hr))return hr;
         hr=factory->CreateDevice(dxgi.Get(),d2device.GetAddressOf());if(FAILED(hr))return hr;
         hr=d2device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE,dc.GetAddressOf());if(FAILED(hr))return hr;
@@ -90,20 +96,20 @@ struct Renderer {
             format(bundled_fonts?L"Share Tech Mono":L"Consolas",creeperux::type_xxl,kit_fonts.Get(),ui_value);
         }
         hr=dc->CreateSolidColorBrush(creeperux::text,&ui_paint);if(FAILED(hr))return hr;
-        hr=bind_target();if(FAILED(hr))return hr;
         hr=DCompositionCreateDevice(dxgi.Get(),__uuidof(IDCompositionDevice),reinterpret_cast<void**>(composition.GetAddressOf()));if(FAILED(hr))return hr;
         hr=composition->CreateTargetForHwnd(window,TRUE,composition_target.GetAddressOf());if(FAILED(hr))return hr;
         hr=composition->CreateVisual(visual.GetAddressOf());if(FAILED(hr))return hr;
-        hr=visual->SetContent(swap.Get());if(FAILED(hr))return hr;hr=composition_target->SetRoot(visual.Get());if(FAILED(hr))return hr;
-        hr=composition->Commit();if(FAILED(hr))return hr;width=w;height=h;return S_OK;
+        hr=composition_target->SetRoot(visual.Get());if(FAILED(hr))return hr;
+        hr=bind_target(w,h);if(FAILED(hr))return hr;
+        return composition->Commit();
     }
     HRESULT resize(UINT w,UINT h){
         if(w==width&&h==height)return S_OK;
-        dc->SetTarget(nullptr);target.Reset();immediate->ClearState();immediate->Flush();
-        HRESULT hr=swap->ResizeBuffers(2,w,h,DXGI_FORMAT_B8G8R8A8_UNORM,DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT);
-        if(FAILED(hr))return hr;width=w;height=h;return bind_target();
+        dc->SetTarget(nullptr);target.Reset();canvas.Reset();immediate->ClearState();immediate->Flush();
+        HRESULT hr=bind_target(w,h);if(FAILED(hr))return hr;return composition->Commit();
     }
-    bool ready()const{return latency && WaitForSingleObject(latency,0)==WAIT_OBJECT_0;}
+    // No swap-chain queue to wait on: the HUD loop paces frames itself (hud_target_hz).
+    bool ready()const{return canvas&&surface;}
     static D2D1_POINT_2F point(hud_geometry::Point p){return D2D1::Point2F(p.x,p.y);}
     void line(hud_geometry::Point a,hud_geometry::Point b,float size,float alpha){
         outline->SetOpacity(alpha*.28f);ink->SetOpacity(alpha);dc->DrawLine(point(a),point(b),outline.Get(),size+1.5f);dc->DrawLine(point(a),point(b),ink.Get(),size);
@@ -263,6 +269,18 @@ struct Renderer {
         draw_ui(frame);
         return dc->EndDraw();
     }
-    HRESULT present(){return swap->Present(0,DXGI_PRESENT_DO_NOT_WAIT);}
+    // Copy the finished canvas into the composition surface and commit it to DWM.
+    HRESULT present(){
+        ComPtr<IDXGISurface> update;POINT offset{};
+        HRESULT hr=surface->BeginDraw(nullptr,IID_PPV_ARGS(update.GetAddressOf()),&offset);if(FAILED(hr))return hr;
+        ComPtr<ID3D11Texture2D> texture;hr=update.As(&texture);
+        if(SUCCEEDED(hr)){
+            D3D11_TEXTURE2D_DESC d{};texture->GetDesc(&d);surface_format=d.Format;
+            if(d.Format==DXGI_FORMAT_B8G8R8A8_UNORM||d.Format==DXGI_FORMAT_B8G8R8A8_TYPELESS)immediate->CopySubresourceRegion(texture.Get(),0,UINT(offset.x),UINT(offset.y),0,canvas.Get(),0,nullptr);
+            else hr=DXGI_ERROR_UNSUPPORTED;
+        }
+        const HRESULT end=surface->EndDraw();if(FAILED(hr))return hr;if(FAILED(end))return end;
+        return composition->Commit();
+    }
 };
 }

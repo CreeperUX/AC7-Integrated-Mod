@@ -28,7 +28,7 @@ Write-Host "游戏根目录：$game"
 Write-Host (Format-AC7StateText (Get-AC7InstallState $game))
 if(!$Features){
  if(!$Yes){& (Join-Path $root 'Choose-Features.ps1')}
- $Features=(Read-AC7FeatureSettings (Join-Path $root 'features.ini')).Features
+ $Features=(Read-AC7FeatureSettings (Get-AC7DataFile $root 'features.ini')).Features
 }
 $Features=ConvertTo-AC7Features $Features   # 0.5.x 'weapons' = full
 $plan=Invoke-AC7Install -PackageRoot $root -GameRoot $game -Features $Features -SaveRoot $SaveRoot -CheckOnly -TestOnlySkipExeHash:$TestOnlySkipExeHash
@@ -40,7 +40,7 @@ if(!$Yes){
  if((Read-Host '输入 Y 开始安装（其他任意键取消）') -notin @('Y','y')){Stop-AC7Problem 'CANCELLED' '已取消安装，未修改任何文件。' '需要时重新运行 Setup.cmd。'}
 }
 $summary=Invoke-AC7Install -PackageRoot $root -GameRoot $game -Features $Features -SaveRoot $SaveRoot -TestOnlySkipExeHash:$TestOnlySkipExeHash
-Write-AC7TextAtomic (Join-Path $root 'game-path.txt') ($game+"`r`n")
+Write-AC7TextAtomic (Get-AC7DataFile $root 'game-path.txt') ($game+"`r`n")
 Save-AC7FeatureSettings $root $Features
 Write-Host (Format-AC7InstallSummary $summary) -ForegroundColor Green
 Write-Output ('INSTALLED features='+$Features+' mode='+$summary.Mode+' new='+$summary.New+' updated='+$summary.Updated+' removed='+$summary.Removed)

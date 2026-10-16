@@ -109,7 +109,9 @@ inline void invalidate(){std::lock_guard<std::mutex> l(goal_mutex);goal.valid=fa
 struct Record {uint64_t t;int mode;float dt,speed;float goal[3],bank_r,bank_u,ff[2];double S[3],R[3],stick[3],Sout[3],err[3],stop[3];float angle,calib_p,calib_b,aim_speed,aim_still;};
 inline std::mutex trace_mutex;inline std::array<Record,4096> trace_queue;inline size_t trace_head=0,trace_size=0;
 inline std::atomic<uint64_t> trace_dropped{0};inline FILE* trace_file=nullptr;inline bool trace_failed=false;inline uint64_t trace_rows=0;
+inline std::atomic<bool> trace_enabled{false};   // flight_recording=1 (AC8 2.4.3/2.5.0); off: no FE CSV is created
 inline void trace_push(const Record& r){
+ if(!trace_enabled.load(std::memory_order_relaxed))return;
  std::unique_lock<std::mutex> lock(trace_mutex,std::try_to_lock);
  if(!lock.owns_lock()||trace_size==trace_queue.size()){++trace_dropped;return;}
  trace_queue[(trace_head+trace_size)%trace_queue.size()]=r;++trace_size;

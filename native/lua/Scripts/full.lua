@@ -114,4 +114,4 @@ LoopInGameThreadAfterFrames(1,function()
  if not ok then stop('frame error');if tostring(err)~=last_error then last_error=tostring(err);log('ERROR '..last_error)end end
  return false
 end)
-log('AC7 0.6.0-beta.1 (AC8 2.4.2 core); WAR exact flight-engine controller, reticle on the GPU overlay at native resolution (hud_renderer=1; 3 = inside the game HUD), F4 PEACE/WAR, F2 helmet target priority, F3 native/far camera, F8 toggle, F9 recenter, C free look')
+log('AC7 0.6.1-beta.1 (AC8 2.4.2 core); WAR exact flight-engine controller, reticle on the GPU overlay at native resolution (hud_renderer=1; 3 = inside the game HUD), F4 PEACE/WAR, F2 helmet target priority, F3 native/far camera, F8 toggle, F9 recenter, C free look')

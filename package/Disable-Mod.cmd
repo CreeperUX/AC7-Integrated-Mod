@@ -1,4 +1,5 @@
 @echo off
+title AC7 Integrated
 "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "%~dp0Run-Console.ps1" -Action Disable
 set "AC7_RESULT=%errorlevel%"
 pause

@@ -20,8 +20,9 @@ function New-AC7KeybindingsDialog([string]$Root,$Owner,[ValidateSet('dark','ligh
  $xml=[xml](Get-Content -LiteralPath (Join-Path $PSScriptRoot 'Keybindings-GUI.xaml') -Raw -Encoding UTF8)
  $dialog=[Windows.Markup.XamlReader]::Load([Xml.XmlNodeReader]::new($xml));if($Owner){$dialog.Owner=$Owner}
  Set-CreeperUXTheme $dialog $Theme
+ if(Get-Command Set-AC7WindowIcon -ErrorAction SilentlyContinue){Set-AC7WindowIcon $dialog}
  $area=[Windows.SystemParameters]::WorkArea;$dialog.Width=[Math]::Min($dialog.Width,$area.Width-24);$dialog.Height=[Math]::Min($dialog.Height,$area.Height-24);$dialog.MinWidth=[Math]::Min($dialog.MinWidth,$dialog.Width);$dialog.MinHeight=[Math]::Min($dialog.MinHeight,$dialog.Height)
- $state=@{Values=(Read-AC7Keybindings (Join-Path $Root 'Keybindings.ini'));Capture=$null;Saved=$false;Message=''}
+ $state=@{Values=(Read-AC7Keybindings (Get-AC7DataFile $Root 'Keybindings.ini'));Capture=$null;Saved=$false;Message=''}
  # Event handlers are GetNewClosure() closures, which resolve commands only at global scope. Carry the functions they
  # call on the context so the dialog works however the launcher was started (-File, call operator or dot-source).
  $commands=@{Capture=${function:Set-AC7CapturedBinding};Defaults=${function:Get-AC7DefaultBindings};Spec=${function:Get-AC7KeybindingSpec};Save=${function:Save-AC7KeybindingsFromDialog}}

@@ -41,7 +41,7 @@ bool run_gpu_hud(){
                 if(!renderer){
                     renderer=std::make_unique<gpu_hud::Renderer>();HRESULT hr=renderer->initialize(window,width,height);
                     if(FAILED(hr)){log_line("GPU_HUD init failed hr=%08lX; legacy fallback",static_cast<unsigned long>(hr));failed=true;break;}
-                    log_line("GPU_HUD ready: D3D11 + Direct2D + DirectComposition; premultiplied flip chain; frame_latency=1");
+                    log_line("GPU_HUD ready: D3D11 + Direct2D + DirectComposition surface (no swap chain: invisible to ReShade/RenoDX); premultiplied BGRA");
                 }
                 HRESULT hr=renderer->resize(width,height);
                 if(FAILED(hr)){log_line("GPU_HUD resize failed hr=%08lX",static_cast<unsigned long>(hr));failed=true;break;}
@@ -109,7 +109,7 @@ bool run_gpu_hud(){
                     hr=renderer->draw(frame,dt);if(SUCCEEDED(hr))hr=renderer->present();
                     if(hr==DXGI_ERROR_WAS_STILL_DRAWING){++busy;queue_retry=true;}
                     else if(FAILED(hr)){
-                        ++errors;log_line("GPU_HUD device error hr=%08lX",static_cast<unsigned long>(hr));ShowWindow(window,SW_HIDE);shown=false;renderer.reset();
+                        ++errors;log_line("GPU_HUD device error hr=%08lX surface_format=%d",static_cast<unsigned long>(hr),int(renderer->surface_format));ShowWindow(window,SW_HIDE);shown=false;renderer.reset();
                         if(++recovery>2){failed=true;break;}
                     }else{
                         if(last_draw){auto gap=perf_us(tick-last_draw);total_gap+=gap;peak_gap=std::max(peak_gap,gap);}last_draw=tick;++drawn;submit_gaps.event(tick,hud_frequency());if(!ui_only){const double clock_ms=1000.0/perf_frequency.QuadPart;camera_ages.sample(double(hud_qpc()-f.camera_qpc)*clock_ms);pose_ages.sample(double(hud_qpc()-f.pose_qpc)*clock_ms);}total_source_age+=GetTickCount64()-f.tick;

@@ -23,7 +23,7 @@ function Get-AC7FeatureSettingsText([string]$Features) {
  return '; Installation scope: mouse = AC7MouseAim only (stock missiles); guidance = + AC7Weapons, guidance lead only;'+"`r`n"+'; full = + AC7Weapons, all AC8 missile rules. Applied by the next install/update (Start-GUI.cmd or Setup.cmd).'+"`r`n"+'features='+(ConvertTo-AC7Features $Features)+"`r`n"
 }
 function Save-AC7FeatureSettings([string]$Root,[ValidateSet('mouse','guidance','full','weapons')][string]$Features) {
- Write-AC7TextAtomic (Join-Path $Root 'features.ini') (Get-AC7FeatureSettingsText $Features)
+ Write-AC7TextAtomic (Get-AC7DataFile $Root 'features.ini') (Get-AC7FeatureSettingsText $Features)
 }
 # AC7Weapons/Scripts/settings.lua for a tier (LF, like the payload file; full is byte-identical to the payload).
 function Get-AC7WeaponsSettingsText([string]$Features) {

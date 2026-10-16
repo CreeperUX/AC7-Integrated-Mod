@@ -1,12 +1,13 @@
 ﻿. (Join-Path $PSScriptRoot 'Cleanup-Core.ps1')
 . (Join-Path $PSScriptRoot 'Discover-Installations.ps1')
 function Get-AC7GuiSavedPath([string]$Root,[string]$Name){
- $path=Join-Path $Root $Name
+ $path=Get-AC7DataFile $Root $Name
  if(Test-Path -LiteralPath $path -PathType Leaf){$text=Get-Content -LiteralPath $path -Raw -Encoding UTF8;if($null -ne $text){return $text.Trim()}}
  return ''
 }
 # game-path.txt, steam-path.txt and features.ini change together or not at all.
 function Save-AC7GuiSettings([string]$Root,[string]$GameRoot,[string]$Steam,[ValidateSet('mouse','guidance','full','weapons')][string]$Features){
+ $Root=Get-AC7DataRoot $Root
  $values=[ordered]@{
   'game-path.txt'=$GameRoot
   'steam-path.txt'=$Steam
@@ -35,7 +36,9 @@ function New-AC7GuiResult([bool]$Success,[string]$Title,[string]$Message,[string
  return [pscustomobject]@{Success=$Success;Title=$Title;Message=$Message;GameRoot=$GameRoot;SteamPath=$null;ModState=$ModState;OpenFolder=$null}
 }
 function Invoke-AC7GuiAction {
- param([ValidateSet('Discover','Check','Install','Disable','Enable','Start','Recover','Collect')][string]$Action,[string]$Root,[string]$GamePath,[string]$SteamPath,[ValidateSet('mouse','guidance','full','weapons')][string]$Features='full',[bool]$Confirmed=$false)
+ param([ValidateSet('Discover','Check','Install','Disable','Enable','Start','Recover','Collect','UpdateCheck','UpdateAuto')][string]$Action,[string]$Root,[string]$GamePath,[string]$SteamPath,[ValidateSet('mouse','guidance','full','weapons')][string]$Features='full',[bool]$Confirmed=$false)
+ # Update check (0.7.0): the package's own app layer; reads the GitHub release list only, never throws.
+ if($Action -in @('UpdateCheck','UpdateAuto')){. ([IO.Path]::Combine($Root,'app','App-Core.ps1'));return Invoke-AC7LauncherUpdateCheck $Root ($Action -eq 'UpdateAuto')}
  $Features=ConvertTo-AC7Features $Features
  if($Action -eq 'Discover'){
   $found=Find-AC7Installations -GamePath $GamePath -SteamPath $SteamPath

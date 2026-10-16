@@ -92,7 +92,7 @@ function Assert-AC7GameBuild([string]$PackageRoot,[string]$GameRoot,[switch]$Tes
 }
 function Get-AC7SaveRoot {return (Join-Path $env:LOCALAPPDATA 'BANDAI NAMCO Entertainment\ACE COMBAT 7')}
 function Get-AC7SavedText([string]$Root,[string]$Name) {
- $path=Join-Path $Root $Name
+ $path=Get-AC7DataFile $Root $Name
  if(Test-Path -LiteralPath $path -PathType Leaf){$text=Get-Content -LiteralPath $path -Raw -Encoding UTF8;if($null -ne $text){return $text.Trim()}}
  return ''
 }
@@ -137,7 +137,7 @@ function Show-AC7Problem($Failure,[string]$PackageRoot,[string]$Stage='操作') 
  Write-Host "[$Stage 未完成] $message" -ForegroundColor Red
  Write-Host $hint -ForegroundColor Yellow
  try{
-  $folder=Join-Path $PackageRoot 'diagnostics';New-Item -ItemType Directory -Path $folder -Force | Out-Null
+  $folder=Get-AC7DataFile $PackageRoot 'diagnostics';New-Item -ItemType Directory -Path $folder -Force | Out-Null
   $log=Join-Path $folder ((Get-Date -Format 'yyyyMMdd-HHmmss')+'-'+[guid]::NewGuid().ToString('N')+'.txt')
   @("Stage: $Stage",$Failure.ToString(),$Failure.ScriptStackTrace) | Set-Content -LiteralPath $log -Encoding UTF8
   Write-Host "诊断文件：$log"

@@ -40,7 +40,7 @@ function Read-AC7Keybindings([string]$Path) {
 function Save-AC7Keybindings([string]$Root,$Values,[string]$GameRoot) {
  if($GameRoot){Assert-AC7GameClosed $GameRoot}
  Assert-AC7Keybindings $Values
- $path=Join-Path $Root 'Keybindings.ini';$temporary=$path+'.'+[guid]::NewGuid().ToString('N')+'.tmp'
+ $path=Get-AC7DataFile $Root 'Keybindings.ini';$temporary=$path+'.'+[guid]::NewGuid().ToString('N')+'.tmp'
  $lines=@('; Saved by Start-GUI.cmd > Keybindings. Written into the installed config.ini [keybindings].','; Manual axes must match the game bindings. Throttle/brake stay stock.','[bindings]')
  foreach($action in (Get-AC7KeybindingSpec).actions){$lines+=($action.name+'='+(Convert-AC7KeyToken ([string]$Values[$action.name])))}
  try {

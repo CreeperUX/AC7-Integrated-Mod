@@ -38,7 +38,7 @@ struct Image {UINT w=0,h=0;std::vector<unsigned char> px;
 };
 static Image dump(gpu_hud::Renderer& r,const char* path){
     Microsoft::WRL::ComPtr<ID3D11Texture2D> source,staging;
-    check(r.swap->GetBuffer(0,IID_PPV_ARGS(source.GetAddressOf())),"get backbuffer");
+    source=r.canvas;
     D3D11_TEXTURE2D_DESC desc{};source->GetDesc(&desc);desc.Usage=D3D11_USAGE_STAGING;desc.BindFlags=0;desc.CPUAccessFlags=D3D11_CPU_ACCESS_READ;desc.MiscFlags=0;
     check(r.device->CreateTexture2D(&desc,nullptr,staging.GetAddressOf()),"staging");r.immediate->CopyResource(staging.Get(),source.Get());
     D3D11_MAPPED_SUBRESOURCE map{};check(r.immediate->Map(staging.Get(),0,D3D11_MAP_READ,0,&map),"map");
@@ -77,7 +77,7 @@ int main(){
         gpu_hud::Renderer r;check(r.initialize(w,3840,2160,L"test-runtime\\ui-fonts"),"hardware initialize");
         const float k=R::unit(2160);const hud_geometry::Point ring{1920,1080},nose{2240,1300},look{1500,900};
         auto frame=[&](bool hmd,bool freelook,bool cross,bool connector,const char* path,float width=1){
-            REQUIRE(WaitForSingleObject(r.latency,1000)==WAIT_OBJECT_0);
+            REQUIRE(r.ready());
             gpu_hud::Layout f;f.target=f.nose=true;f.target_point=ring;f.nose_point=nose;f.helmet_active=hmd;f.freelook=freelook;
             f.look=hmd&&freelook;f.look_point=look;f.boresight_active=cross;f.connector=connector;f.opacity=.65f;f.line_width=width;
             check(r.draw(f,1.f/120),"draw");Image img=dump(r,path);check(r.present(),"present");return img;
@@ -110,10 +110,20 @@ int main(){
         REQUIRE(!d.ink(nose.x+18*k,nose.y,2)&&d.core(ring.x+R::ring*k,ring.y));
         {auto t=R::ticks(ring,nose,2160,false);REQUIRE(!d.ink(t[0].center.x,t[0].center.y,2));}
         // UI-only frame (hybrid mode 3) draws no reticle
-        REQUIRE(WaitForSingleObject(r.latency,1000)==WAIT_OBJECT_0);
+        REQUIRE(r.ready());
         {gpu_hud::Layout f;f.ui_only=true;f.target=f.nose=true;f.target_point=ring;f.nose_point=nose;check(r.draw(f,1.f/120),"ui only");
          Image e=dump(r,"test-runtime/previews/reticle-4k-uionly.bgra");check(r.present(),"present");for(size_t i=3;i<e.px.size();i+=4)REQUIRE(e.px[i]==0);}
         printf("PASS hardware render 3840x2160: ring/HMD/free-look/gun cross/ticks, thin strokes + hud_line_width 0.5/2/clamp, clear centres, toggles, UI-only\n");
+    }
+    // ---- 3. composition surface: present copies the canvas into a premultiplied BGRA DComp surface and commits ----
+    {
+        gpu_hud::Renderer r;check(r.initialize(w,3840,2160,L"test-runtime\\ui-fonts"),"surface initialize");REQUIRE(r.ready()&&r.surface&&r.canvas);
+        gpu_hud::Layout f;f.target=f.nose=true;f.target_point={1920,1080};f.nose_point={2240,1300};f.opacity=.65f;
+        for(int i=0;i<240;++i){check(r.draw(f,1.f/120),"surface draw");check(r.present(),"surface present");}
+        REQUIRE(r.surface_format==DXGI_FORMAT_B8G8R8A8_UNORM||r.surface_format==DXGI_FORMAT_B8G8R8A8_TYPELESS);
+        check(r.resize(2560,1440),"surface resize");REQUIRE(r.width==2560&&r.height==1440&&r.ready());
+        check(r.draw(f,1.f/120),"resized draw");check(r.present(),"resized present");
+        printf("PASS composition surface: 240 presents at 3840x2160 + resize to 2560x1440, surface format %d, no swap chain\n",int(r.surface_format));
     }
     DestroyWindow(w);UnregisterClassW(wc.lpszClassName,wc.hInstance);CoUninitialize();
 }
